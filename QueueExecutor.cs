@@ -11,7 +11,7 @@ namespace PublishScheduler
     public static class QueueExecutor
     {
         [FunctionName("QueueExecutor")]
-        public static void Run([QueueTrigger("scheduledprsqueue", Connection = "DefaultEndpointsProtocol=https;AccountName=pubscheda792;AccountKey=x5C8PUwhSi94mgV2HALD6oGHA0sAGMq408OAz1xSXjHudGdi5nDsG3NQTIVmV/1d2hYN1uRwJhhrGSiuYUqQkA==;")]string myQueueItem, ILogger log)
+        public static void Run([QueueTrigger("scheduledprsqueue", Connection = "AzureWebJobsStorage")]string myQueueItem, ILogger log)
         {
             log.LogInformation($"C# Queue trigger function processed: {myQueueItem}");
         }
