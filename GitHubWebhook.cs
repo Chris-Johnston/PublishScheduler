@@ -4,6 +4,9 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.WebJobs;
 using Microsoft.Azure.WebJobs.Extensions.Http;
+using Microsoft.Azure;
+using Microsoft.Azure.Storage;
+using Microsoft.Azure.Storage.Queue;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
@@ -37,6 +40,11 @@ namespace PublishScheduler
 
             log.LogInformation($"Request body: {requestBody}");
 
+            CloudStorageAccount csAccount = CloudStorageAccount.Parse("DefaultEndpointsProtocol=https;AccountName=pubscheda792;AccountKey=x5C8PUwhSi94mgV2HALD6oGHA0sAGMq408OAz1xSXjHudGdi5nDsG3NQTIVmV/1d2hYN1uRwJhhrGSiuYUqQkA==;");
+            CloudQueueClient cQueueClient = csAccount.CreateCloudQueueClient();
+            CloudQueue cQueue = cQueueClient.GetQueueReference("scheduledprsqueue");
+            CloudQueueMessage cqMessage = new CloudQueueMessage((req.Headers[EventType]).ToString());
+            cQueue.AddMessage(cqMessage);
 
             switch (eventType)
             {
