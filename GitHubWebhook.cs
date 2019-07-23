@@ -37,9 +37,17 @@ namespace PublishScheduler
             return result;
         }
 
-        private static bool InsertMessageToQueue (CloudQueue cQueueToInsert, MergeData mdMessageData)
+        private static string InsertMessageToQueue (CloudQueue cQueueToInsert, MergeData mdMessageData, TimeSpan tsTimeToExecute)
         {
-            return true;
+            try
+            {
+                CloudQueueMessage cqMessage = new CloudQueueMessage((mdMessageData).ToString());
+                cQueueToInsert.AddMessage(cqMessage, null, tsTimeToExecute, null, null);
+                return "Message " + cqMessage.Id + " inserted into queue.";
+            } catch (Exception eThrownException)
+            {
+               return eThrownException.Message; 
+            }   
         }
 
         // the name of the header which indicates the type of event
@@ -71,10 +79,6 @@ namespace PublishScheduler
             CloudStorageAccount csAccount = CloudStorageAccount.Parse("DefaultEndpointsProtocol=https;AccountName=pubscheda792;AccountKey=x5C8PUwhSi94mgV2HALD6oGHA0sAGMq408OAz1xSXjHudGdi5nDsG3NQTIVmV/1d2hYN1uRwJhhrGSiuYUqQkA==;");
             CloudQueueClient cQueueClient = csAccount.CreateCloudQueueClient();
             CloudQueue cQueue = cQueueClient.GetQueueReference("scheduledprsqueue");
-           
-           // Creating and insterting message into queue
-            CloudQueueMessage cqMessage = new CloudQueueMessage((req.Headers[EventType]).ToString());
-            cQueue.AddMessage(cqMessage, null, TimeSpan.FromHours(6), null, null);
 
             // deserialize the payload
             var payload = JsonConvert.DeserializeObject<WebhookPayload>(requestBody);
@@ -89,6 +93,7 @@ namespace PublishScheduler
                         if (prresult != null)
                         {
                             log.LogInformation($"Got PR with command: {prresult.BranchName} {prresult.MergeTime}");
+                            log.LogInformation($"Message insert result: " + InsertMessageToQueue(cQueue, prresult, TimeSpan.FromMinutes(5)));
                         }
                     break;
                     case IssueCommentEvent: // same event as a PR comment, need to check that this comment is made on a PR and not an issue
@@ -97,6 +102,7 @@ namespace PublishScheduler
                         if (result != null)
                         {
                             log.LogInformation($"Got comment with command: {result.BranchName} {result.MergeTime}");
+                            log.LogInformation($"Message insert result: " + InsertMessageToQueue(cQueue, result, TimeSpan.FromMinutes(5)));
                         }
                     break;
                 }
