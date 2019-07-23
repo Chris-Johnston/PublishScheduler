@@ -18,8 +18,6 @@ namespace PublishScheduler
         private const string PullRequestEvent = "pull_request";
         private const string IssueComentEvent = "issue_comment";
 
-
-
         [FunctionName("GitHubWebhook")]
         public static async Task<IActionResult> Run(
             [HttpTrigger(AuthorizationLevel.Function, "get", "post", Route = null)] HttpRequest req,
