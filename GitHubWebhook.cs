@@ -39,8 +39,10 @@ namespace PublishScheduler
 
         private static string InsertMessageToQueue (CloudQueue cQueueToInsert, MergeData mdMessageData, TimeSpan tsTimeToExecute)
         {
+            // AddMessage has no return value, so failure will only show as exception
             try
             {
+                // prep object and add to queue
                 string sMessageDataJson = JsonConvert.SerializeObject(mdMessageData);
                 CloudQueueMessage cqMessage = new CloudQueueMessage(sMessageDataJson);
                 cQueueToInsert.AddMessage(cqMessage, null, tsTimeToExecute, null, null);
