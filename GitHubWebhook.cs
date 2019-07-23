@@ -17,11 +17,11 @@ namespace PublishScheduler
             [HttpTrigger(AuthorizationLevel.Function, "get", "post", Route = null)] HttpRequest req,
             ILogger log)
         {
-            log.LogInformation("C# HTTP trigger function processed a request.");
+            log.LogInformation("Got GitHub Webhook.");
 
             string requestBody = await new StreamReader(req.Body).ReadToEndAsync();
 
-            log.LogDebug($"Request body: {requestBody}");
+            log.LogInformation($"Request body: {requestBody}");
 
             return new OkObjectResult("OK");
         }
