@@ -37,11 +37,16 @@ namespace PublishScheduler
             return result;
         }
 
+        private static bool InsertMessageToQueue (CloudQueue cQueueToInsert, MergeData mdMessageData)
+        {
+            return true;
+        }
+
         // the name of the header which indicates the type of event
         private const string EventType = "X-GitHub-Event";
         
         private const string PullRequestEvent = "pull_request";
-        private const string IssueComentEvent = "issue_comment";
+        private const string IssueCommentEvent = "issue_comment";
 
         [FunctionName("GitHubWebhook")]
         public static async Task<IActionResult> Run(
@@ -62,9 +67,12 @@ namespace PublishScheduler
 
             log.LogInformation($"Request body: {requestBody}");
 
+            // Establishing connectivity to queue
             CloudStorageAccount csAccount = CloudStorageAccount.Parse("DefaultEndpointsProtocol=https;AccountName=pubscheda792;AccountKey=x5C8PUwhSi94mgV2HALD6oGHA0sAGMq408OAz1xSXjHudGdi5nDsG3NQTIVmV/1d2hYN1uRwJhhrGSiuYUqQkA==;");
             CloudQueueClient cQueueClient = csAccount.CreateCloudQueueClient();
             CloudQueue cQueue = cQueueClient.GetQueueReference("scheduledprsqueue");
+           
+           // Creating and insterting message into queue
             CloudQueueMessage cqMessage = new CloudQueueMessage((req.Headers[EventType]).ToString());
             cQueue.AddMessage(cqMessage, null, TimeSpan.FromHours(6), null, null);
 
@@ -83,7 +91,7 @@ namespace PublishScheduler
                             log.LogInformation($"Got PR with command: {prresult.BranchName} {prresult.MergeTime}");
                         }
                     break;
-                    case IssueComentEvent: // same event as a PR comment, need to check that this comment is made on a PR and not an issue
+                    case IssueCommentEvent: // same event as a PR comment, need to check that this comment is made on a PR and not an issue
                         // do a thing, but differently
                         var result = CheckCommentHasCommand(payload);
                         if (result != null)
