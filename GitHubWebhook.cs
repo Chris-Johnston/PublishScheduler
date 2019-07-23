@@ -50,9 +50,7 @@ namespace PublishScheduler
                 break;
             }
 
-
-
-            return new OkObjectResult("OK");
+            return new OkResult();
         }
     }
 }
