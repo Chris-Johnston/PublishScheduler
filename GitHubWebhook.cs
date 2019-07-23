@@ -41,9 +41,13 @@ namespace PublishScheduler
         {
             try
             {
-                CloudQueueMessage cqMessage = new CloudQueueMessage((mdMessageData).ToString());
+                string sMessageDataJson = JsonConvert.SerializeObject(mdMessageData);
+                CloudQueueMessage cqMessage = new CloudQueueMessage(sMessageDataJson);
                 cQueueToInsert.AddMessage(cqMessage, null, tsTimeToExecute, null, null);
-                return "Message " + cqMessage.Id + " inserted into queue.";
+
+                string sResult = "Message : " + Environment.NewLine + sMessageDataJson + Environment.NewLine + " ---- for " + cqMessage.Id + " inserted into queue.";
+
+                return sResult;
             } catch (Exception eThrownException)
             {
                return eThrownException.Message; 
