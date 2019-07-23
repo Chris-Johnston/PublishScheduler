@@ -11,6 +11,9 @@ namespace PublishScheduler
         [JsonProperty("issue")]
         public Issue Issue { get; set; }
 
+        [JsonProperty("pull_request")]
+        public Issue PullRequest { get; set; } // not a bug, this is used when PRs are created
+
         [JsonProperty("comment")]
         public Comment Comment { get; set; }
 
