@@ -46,6 +46,7 @@ namespace PublishScheduler
             CloudQueueClient cQueueClient = csAccount.CreateCloudQueueClient();
             CloudQueue cQueue = cQueueClient.GetQueueReference("scheduledprsqueue");
             CloudQueueMessage cqMessage = new CloudQueueMessage((req.Headers[EventType]).ToString());
+            cQueue.AddMessage(cqMessage);
 
             switch (eventType)
             {
