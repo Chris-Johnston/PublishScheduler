@@ -66,7 +66,7 @@ namespace PublishScheduler
             CloudQueueClient cQueueClient = csAccount.CreateCloudQueueClient();
             CloudQueue cQueue = cQueueClient.GetQueueReference("scheduledprsqueue");
             CloudQueueMessage cqMessage = new CloudQueueMessage((req.Headers[EventType]).ToString());
-            cQueue.AddMessage(cqMessage, null, TimeSpan.FromSeconds(300), null, null);
+            cQueue.AddMessage(cqMessage, null, TimeSpan.FromHours(6), null, null);
 
             // deserialize the payload
             var payload = JsonConvert.DeserializeObject<WebhookPayload>(requestBody);
