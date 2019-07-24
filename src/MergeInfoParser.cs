@@ -15,7 +15,7 @@ namespace PublishScheduler
         }
 
         public static MergeInfoParser GetCommentParser()
-            => new MergeInfoParser("!bot");
+            => new MergeInfoParser("@publishingscheduler");
 
         public static MergeInfoParser GetLabelParser()
             => new MergeInfoParser("automerge:");
