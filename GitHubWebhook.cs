@@ -130,32 +130,39 @@ namespace PublishScheduler
             if (payload != null && isHuman)
             {
                 log.LogDebug("Deserialized the payload.");
-                
-                switch (eventType)
+
+                try
                 {
-                    case PullRequestEvent:
-                        var prresult = CheckPRHasCommand(payload);
-                        if (prresult != null)
-                        {
-                            log.LogInformation($"Got PR with command: {prresult.BranchName} {prresult.MergeTime}");
-                            log.LogInformation($"Message insert result: " + InsertMessageToQueue(cQueue, prresult, TimeSpan.FromMinutes(5)));
-                        }
-                    break;
-                    case IssueCommentEvent: // same event as a PR comment, need to check that this comment is made on a PR and not an issue
-                        // do a thing, but differently
-                        var result = CheckCommentHasCommand(payload);
-                        if (result != null)
-                        {
-                            // ack to the comment
-                            await handler.AckAddToQueueAsync(result);
+                    switch (eventType)
+                    {
+                        case PullRequestEvent:
+                            var prresult = CheckPRHasCommand(payload);
+                            if (prresult != null)
+                            {
+                                log.LogInformation($"Got PR with command: {prresult.BranchName} {prresult.MergeTime}");
+                                log.LogInformation($"Message insert result: " + InsertMessageToQueue(cQueue, prresult, TimeSpan.FromMinutes(5)));
+                            }
+                        break;
+                        case IssueCommentEvent: // same event as a PR comment, need to check that this comment is made on a PR and not an issue
+                            // do a thing, but differently
+                            var result = CheckCommentHasCommand(payload);
+                            if (result != null)
+                            {
+                                // ack to the comment
+                                await handler.AckAddToQueueAsync(result);
 
-                            log.LogInformation($"Got comment with command: {result.BranchName} {result.MergeTime}");
-                            log.LogInformation($"Message insert result: " + InsertMessageToQueue(cQueue, result, TimeSpan.FromMinutes(5)));
-                        }
+                                log.LogInformation($"Got comment with command: {result.BranchName} {result.MergeTime}");
+                                log.LogInformation($"Message insert result: " + InsertMessageToQueue(cQueue, result, TimeSpan.FromMinutes(5)));
+                            }
 
-                        // debug, this should be done in QueueExecutor
-                        // MergePRAsync(log, xmlGHPrivateKey, result).GetAwaiter().GetResult();
-                    break;
+                            // debug, this should be done in QueueExecutor
+                            // MergePRAsync(log, xmlGHPrivateKey, result).GetAwaiter().GetResult();
+                        break;
+                    }
+                }
+                catch (Exception e)
+                {
+                    log.LogInformation(e, "Caught exception when processing payload.");
                 }
 
             }
