@@ -84,10 +84,15 @@ namespace PublishScheduler
         private const int ngrokAppId = 36401;
         private const int prodAppId = 36392;
 
-        private const bool InDebug = true;
-
         public static int AppId
-            => InDebug ? ngrokAppId : prodAppId;
+            => GetDebug() ? ngrokAppId : prodAppId;
+
+        private static bool GetDebug()
+        {
+            // to use the ngrokAppId, set this env var to "debug"
+            var environment = Environment.GetEnvironmentVariable("FUNCTION_ENVIRONMENT");
+            return environment?.ToLower() == "debug";
+        }
 
         [FunctionName("GitHubWebhook")]
         public static async Task<IActionResult> Run(
