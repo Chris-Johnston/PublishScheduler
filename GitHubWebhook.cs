@@ -42,6 +42,7 @@ namespace PublishScheduler
 
             var parser = MergeInfoParser.GetCommentParser();
             var result = parser.Parse(body);
+            result.RequesterAssociation = payload.Comment?.AuthorAssociation;
             return result.GetMergeData(payload);
         }
 
@@ -53,6 +54,7 @@ namespace PublishScheduler
 
             var parser = MergeInfoParser.GetCommentParser();
             var result = parser.Parse(body);
+            result.RequesterAssociation = payload.PullRequest?.AuthorAssociation;
             return result.GetMergeData(payload);
         }
 

@@ -169,6 +169,17 @@ namespace PublishScheduler
             var x = await client.PullRequest.Get(data.RepositoryOwner, data.RepositoryName, data.PullRequestNumber);
             log.LogInformation($"PR #{data.PullRequestNumber} mergeable status {x.Mergeable} {x.State}");
 
+            
+            // check requester association
+            var valid = new List<string>(){ "MEMBER", "COLLABORATOR", "OWNER" };
+
+            if (!valid.Contains(data.RequesterAssociation))
+            {
+                // user is not allowed to do this
+                await client.Issue.Comment.Create(data.RepositoryOwner, data.RepositoryName, data.PullRequestNumber, $"Auto-merge blocked, user @{data.MergeIssuer} ({data.RequesterAssociation}) does not have the association required to merge.");
+                return;
+            }
+
             if (x.Mergeable == false)
             {
                 await client.Issue.Comment.Create(data.RepositoryOwner, data.RepositoryName, data.PullRequestNumber, $"Auto-merge blocked by unmergeable state. @{data.MergeIssuer}, please resolve this and merge manually.");

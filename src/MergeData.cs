@@ -31,5 +31,8 @@ namespace PublishScheduler
 
         [JsonProperty("installation_id")]
         public int InstallationId { get; set; }
+
+        [JsonProperty("requester_association")]
+        public string RequesterAssociation { get; set; }
     }
 }
