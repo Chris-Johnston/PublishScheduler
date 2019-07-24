@@ -10,6 +10,11 @@ using Microsoft.Azure.Storage.Queue;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
+using Octokit;
+using System.Security.Cryptography;
+using System.IdentityModel.Tokens.Jwt;
+using Microsoft.IdentityModel.Tokens;
+using System.Xml.Serialization;
 
 namespace PublishScheduler
 {
@@ -48,6 +53,83 @@ namespace PublishScheduler
             {
                return eThrownException.Message; 
             }   
+        }
+
+        
+
+        private async static Task MergePRAsync(ILogger log, string privateKeyXML)
+        {
+            var header = new ProductHeaderValue("PublishScheduler", "0.0.1");
+
+            var issuedAt = DateTime.UtcNow;
+            var expires = DateTime.UtcNow.AddMinutes(10);
+
+            try
+            {
+            var provider = new RSACryptoServiceProvider();
+
+            RSAKeyValue rsaKeyValue;
+
+            var ser = new XmlSerializer(typeof(RSAKeyValue));
+            using (var reader = new StringReader(privateKeyXML))
+            {
+                rsaKeyValue = ser.Deserialize(reader) as RSAKeyValue;
+            }
+    
+            provider.ImportParameters(rsaKeyValue.ToRSAParameters());
+            var key = new RsaSecurityKey(provider);
+            // provider.FromXmlString(xml);
+
+            var handler = new JwtSecurityTokenHandler();
+            var token = handler.CreateJwtSecurityToken("36401", null, null, null, expires, issuedAt,
+                new SigningCredentials(key, SecurityAlgorithms.RsaSha256));
+
+            var jwt = token.RawData;
+
+            log.LogInformation($"got jwt: {jwt}");
+
+
+
+
+            // do something with the jwt
+
+            var appClient = new GitHubClient(header)
+            {
+                Credentials = new Credentials(jwt, AuthenticationType.Bearer)
+            };
+
+            // TODO: get installation ID from webhook payload
+            var installation = await appClient.GitHubApps.GetInstallationForCurrent(1314101);
+            var response = await appClient.GitHubApps.CreateInstallationToken(1314101);
+
+            var client = new GitHubClient(header)
+            {
+                Credentials = new Credentials(response.Token)
+            };
+
+            var x = await client.PullRequest.Get("Chris-Johnston", "testscheduler", 2);
+            log.LogInformation($"PR mergeable {x.Mergeable} {x.State}");
+
+            if (x.Mergeable == false)
+            {
+                await client.Issue.Comment.Create("Chris-Johnston", "testscheduler", 2, "Auto-merge blocked by unmergeable state.");
+            }
+            else
+            {
+                await client.PullRequest.Merge("Chris-Johnston", "testscheduler", 2,
+                    new MergePullRequest()
+                    {
+                        CommitTitle = "Merge the thing.",
+                        MergeMethod = PullRequestMergeMethod.Squash,
+                    });
+            }
+
+            } catch (Exception e)
+            {
+                log.LogError(e, "caught exception while doing jwt stuff");
+                log.LogDebug(e, "debug");
+                log.LogInformation($"{e.ToString()}");
+            }
         }
 
         // the name of the header which indicates the type of event
@@ -104,6 +186,10 @@ namespace PublishScheduler
                             log.LogInformation($"Got comment with command: {result.BranchName} {result.MergeTime}");
                             log.LogInformation($"Message insert result: " + InsertMessageToQueue(cQueue, result, TimeSpan.FromMinutes(5)));
                         }
+
+                        var xmlGHPrivateKey = Environment.GetEnvironmentVariable("GitHubPrivateKey");
+
+                        MergePRAsync(log, xmlGHPrivateKey).GetAwaiter().GetResult();
                     break;
                 }
 
