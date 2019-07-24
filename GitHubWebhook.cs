@@ -27,7 +27,7 @@ namespace PublishScheduler
 
             fromBody.RepositoryOwner = payload.Repository.Owner.Login;
             fromBody.RepositoryName = payload.Repository.Name;
-            fromBody.PullRequestNumber = payload.PullRequest?.Number ?? 0;
+            fromBody.PullRequestNumber = payload.PullRequest?.Number ?? payload.Issue?.Number ?? -1;
             fromBody.PullRequestAuthor = payload.PullRequest?.User?.Login;
             fromBody.MergeIssuer = payload.Sender?.Login;
             fromBody.InstallationId = payload.Installation?.Id ?? 0;
@@ -69,88 +69,19 @@ namespace PublishScheduler
             }   
         }
 
-        private static string GetGitHubJWT(string privateKeyXML, int installationId)
-        {
-            var provider = new RSACryptoServiceProvider();
-            var issuedAt = DateTime.UtcNow;
-            var expires = DateTime.UtcNow.AddMinutes(10);
-            RSAKeyValue rsaKeyValue;
-
-            // deserialize the privateKeyXML as a RSAKeyValue
-            var ser = new XmlSerializer(typeof(RSAKeyValue));
-            using (var reader = new StringReader(privateKeyXML))
-            {
-                rsaKeyValue = ser.Deserialize(reader) as RSAKeyValue;
-            }
-
-            // provide those parameters to the RSACryptoServiceProvider
-            // use ToRSAParameter to convert form base64 strings to
-            // byte[] RSAParams
-            provider.ImportParameters(rsaKeyValue.ToRSAParameters());
-            var key = new RsaSecurityKey(provider);
-
-            // actually create the token (hooray!)
-            var handler = new JwtSecurityTokenHandler();
-            var token = handler.CreateJwtSecurityToken($"{installationId}", null, null, null, expires, issuedAt,
-                new SigningCredentials(key, SecurityAlgorithms.RsaSha256));
-
-            return token.RawData;
-        }   
-
-        private async static Task MergePRAsync(ILogger log, string privateKeyXML, MergeData data)
-        {
-            var header = new ProductHeaderValue("PublishScheduler", "0.0.1");
-            try
-            {
-                var jwt = GetGitHubJWT(privateKeyXML, data.InstallationId);
-
-
-            // do something with the jwt
-
-            var appClient = new GitHubClient(header)
-            {
-                Credentials = new Credentials(jwt, AuthenticationType.Bearer)
-            };
-
-            // TODO: get installation ID from webhook payload
-            var installation = await appClient.GitHubApps.GetInstallationForCurrent(1314101);
-            var response = await appClient.GitHubApps.CreateInstallationToken(1314101);
-
-            var client = new GitHubClient(header)
-            {
-                Credentials = new Credentials(response.Token)
-            };
-
-            var x = await client.PullRequest.Get("Chris-Johnston", "testscheduler", 2);
-            log.LogInformation($"PR mergeable {x.Mergeable} {x.State}");
-
-            if (x.Mergeable == false)
-            {
-                await client.Issue.Comment.Create("Chris-Johnston", "testscheduler", 2, "Auto-merge blocked by unmergeable state.");
-            }
-            else
-            {
-                await client.PullRequest.Merge("Chris-Johnston", "testscheduler", 2,
-                    new MergePullRequest()
-                    {
-                        CommitTitle = "Merge the thing.",
-                        MergeMethod = PullRequestMergeMethod.Squash,
-                    });
-            }
-
-            } catch (Exception e)
-            {
-                log.LogError(e, "caught exception while doing jwt stuff");
-                log.LogDebug(e, "debug");
-                log.LogInformation($"{e.ToString()}");
-            }
-        }
-
         // the name of the header which indicates the type of event
         private const string EventType = "X-GitHub-Event";
         
         private const string PullRequestEvent = "pull_request";
         private const string IssueCommentEvent = "issue_comment";
+
+        private const int ngrokAppId = 36401;
+        private const int prodAppId = 36392;
+
+        private const bool InDebug = true;
+
+        public static int AppId
+            => InDebug ? ngrokAppId : prodAppId;
 
         [FunctionName("GitHubWebhook")]
         public static async Task<IActionResult> Run(
@@ -178,10 +109,14 @@ namespace PublishScheduler
 
             // this env var should have an xml body containing an RSA key
             var xmlGHPrivateKey = Environment.GetEnvironmentVariable("GitHubPrivateKey");
+            var handler = new GitHubEventHandlers(log, xmlGHPrivateKey, AppId);
 
             // deserialize the payload
             var payload = JsonConvert.DeserializeObject<WebhookPayload>(requestBody);
-            if (payload != null)
+
+            bool isHuman = payload?.Sender?.Type == "User"; // don't respond in an infinite loop
+
+            if (payload != null && isHuman)
             {
                 log.LogDebug("Deserialized the payload.");
                 
@@ -200,12 +135,15 @@ namespace PublishScheduler
                         var result = CheckCommentHasCommand(payload);
                         if (result != null)
                         {
+                            // ack to the comment
+                            await handler.AckAddToQueueAsync(result);
+
                             log.LogInformation($"Got comment with command: {result.BranchName} {result.MergeTime}");
                             log.LogInformation($"Message insert result: " + InsertMessageToQueue(cQueue, result, TimeSpan.FromMinutes(5)));
                         }
 
                         // debug, this should be done in QueueExecutor
-                        MergePRAsync(log, xmlGHPrivateKey, result).GetAwaiter().GetResult();
+                        // MergePRAsync(log, xmlGHPrivateKey, result).GetAwaiter().GetResult();
                     break;
                 }
 
