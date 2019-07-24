@@ -139,9 +139,10 @@ namespace PublishScheduler
             var pr = await client.PullRequest.Get(data.RepositoryOwner, data.RepositoryName, data.PullRequestNumber);
             var prHead = pr.Head;
 
-            var checkRun = new NewCheckRun($"PublishingScheduler: Auto-merge at {data.MergeTime} UTC.", prHead.Ref);
+            var checkRun = new NewCheckRun($"PublishingScheduler Auto-Merge", prHead.Ref);
             checkRun.Status = CheckStatus.Completed;
             checkRun.Conclusion = CheckConclusion.Failure;
+            checkRun.Output = new NewCheckRunOutput($"Auto-Merge at {data.MergeTime} UTC", $"An auto-merge is scheduled for {data.MergeTime} UTC.");
             await client.Check.Run.Create(data.RepositoryOwner, data.RepositoryName, checkRun);
         }
 
@@ -155,6 +156,7 @@ namespace PublishScheduler
             var checkRun = new NewCheckRun($"PublishingScheduler Auto-Merge", prHead.Ref);
             checkRun.Status = CheckStatus.Completed;
             checkRun.Conclusion = CheckConclusion.Success;
+            checkRun.Output = new NewCheckRunOutput($"{data.MergeTime} UTC", $"An auto-merge is scheduled for {data.MergeTime} UTC.");
             await client.Check.Run.Create(data.RepositoryOwner, data.RepositoryName, checkRun);
         }
 
