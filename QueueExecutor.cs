@@ -30,7 +30,7 @@ namespace PublishScheduler
                 if (!string.IsNullOrWhiteSpace(mdQueueObject.BranchName))
                 {
                     // branchname specified, then create new PR from this PR's dest to the specified dest
-
+                    await handler.CreateNewPR(mdQueueObject);
                 }
             }
             catch (Exception e)
