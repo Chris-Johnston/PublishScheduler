@@ -36,12 +36,15 @@ namespace PublishScheduler
                     int prefixIndex = t.index;
 
                     // out of bounds check
-                    if ((prefixIndex + 3) > splitInput.Length)
+                    if ((prefixIndex + 2) > splitInput.Length)
                         return null;
 
                     // get the next two tokens, one should have the datetime in UTC, next should have the name of the branch
                     var date = splitInput[prefixIndex + 1];
-                    var branch = splitInput[prefixIndex + 2];
+                    
+                    string branch = null;
+                    if (!((prefixIndex + 3) > splitInput.Length)) // branch name is optional, null if unused
+                        branch = splitInput[prefixIndex + 2];
 
                     var parsedDate = ParseDateTime(date);
                     if (!parsedDate.HasValue)
