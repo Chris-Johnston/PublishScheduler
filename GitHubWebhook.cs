@@ -20,6 +20,20 @@ namespace PublishScheduler
 {
     public static class GitHubWebhook
     {
+        // gets the rest of merge data from one that was created from a tag or PR comment/body
+        private static MergeData GetMergeData(this MergeData fromBody, WebhookPayload payload)
+        {
+            if (fromBody == null) return null; // silently fail
+
+            fromBody.RepositoryOwner = payload.Repository.Owner.Login;
+            fromBody.RepositoryName = payload.Repository.Name;
+            fromBody.PullRequestNumber = payload.PullRequest?.Number ?? 0;
+            fromBody.PullRequestAuthor = payload.PullRequest?.User?.Login;
+            fromBody.MergeIssuer = payload.Sender?.Login;
+            fromBody.InstallationId = payload.Installation?.Id ?? 0;
+            return fromBody;
+        }
+
         private static MergeData CheckCommentHasCommand(WebhookPayload payload)
         {
             var body = payload?.Comment?.Body;
@@ -28,7 +42,7 @@ namespace PublishScheduler
 
             var parser = MergeInfoParser.GetCommentParser();
             var result = parser.Parse(body);
-            return result;
+            return result.GetMergeData(payload);
         }
 
         private static MergeData CheckPRHasCommand(WebhookPayload payload)
@@ -39,7 +53,7 @@ namespace PublishScheduler
 
             var parser = MergeInfoParser.GetCommentParser();
             var result = parser.Parse(body);
-            return result;
+            return result.GetMergeData(payload);
         }
 
         private static string InsertMessageToQueue (CloudQueue cQueueToInsert, MergeData mdMessageData, TimeSpan tsTimeToExecute)
@@ -55,40 +69,40 @@ namespace PublishScheduler
             }   
         }
 
-        
-
-        private async static Task MergePRAsync(ILogger log, string privateKeyXML)
+        private static string GetGitHubJWT(string privateKeyXML, int installationId)
         {
-            var header = new ProductHeaderValue("PublishScheduler", "0.0.1");
-
+            var provider = new RSACryptoServiceProvider();
             var issuedAt = DateTime.UtcNow;
             var expires = DateTime.UtcNow.AddMinutes(10);
-
-            try
-            {
-            var provider = new RSACryptoServiceProvider();
-
             RSAKeyValue rsaKeyValue;
 
+            // deserialize the privateKeyXML as a RSAKeyValue
             var ser = new XmlSerializer(typeof(RSAKeyValue));
             using (var reader = new StringReader(privateKeyXML))
             {
                 rsaKeyValue = ser.Deserialize(reader) as RSAKeyValue;
             }
-    
+
+            // provide those parameters to the RSACryptoServiceProvider
+            // use ToRSAParameter to convert form base64 strings to
+            // byte[] RSAParams
             provider.ImportParameters(rsaKeyValue.ToRSAParameters());
             var key = new RsaSecurityKey(provider);
-            // provider.FromXmlString(xml);
 
+            // actually create the token (hooray!)
             var handler = new JwtSecurityTokenHandler();
-            var token = handler.CreateJwtSecurityToken("36401", null, null, null, expires, issuedAt,
+            var token = handler.CreateJwtSecurityToken($"{installationId}", null, null, null, expires, issuedAt,
                 new SigningCredentials(key, SecurityAlgorithms.RsaSha256));
 
-            var jwt = token.RawData;
+            return token.RawData;
+        }   
 
-            log.LogInformation($"got jwt: {jwt}");
-
-
+        private async static Task MergePRAsync(ILogger log, string privateKeyXML, MergeData data)
+        {
+            var header = new ProductHeaderValue("PublishScheduler", "0.0.1");
+            try
+            {
+                var jwt = GetGitHubJWT(privateKeyXML, data.InstallationId);
 
 
             // do something with the jwt
@@ -162,6 +176,9 @@ namespace PublishScheduler
             CloudQueueClient cQueueClient = csAccount.CreateCloudQueueClient();
             CloudQueue cQueue = cQueueClient.GetQueueReference("scheduledprsqueue");
 
+            // this env var should have an xml body containing an RSA key
+            var xmlGHPrivateKey = Environment.GetEnvironmentVariable("GitHubPrivateKey");
+
             // deserialize the payload
             var payload = JsonConvert.DeserializeObject<WebhookPayload>(requestBody);
             if (payload != null)
@@ -187,9 +204,8 @@ namespace PublishScheduler
                             log.LogInformation($"Message insert result: " + InsertMessageToQueue(cQueue, result, TimeSpan.FromMinutes(5)));
                         }
 
-                        var xmlGHPrivateKey = Environment.GetEnvironmentVariable("GitHubPrivateKey");
-
-                        MergePRAsync(log, xmlGHPrivateKey).GetAwaiter().GetResult();
+                        // debug, this should be done in QueueExecutor
+                        MergePRAsync(log, xmlGHPrivateKey, result).GetAwaiter().GetResult();
                     break;
                 }
 

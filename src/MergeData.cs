@@ -28,5 +28,8 @@ namespace PublishScheduler
 
         [JsonProperty("merge_issuer")]
         public string MergeIssuer { get; set; }
+
+        [JsonProperty("installation_id")]
+        public int InstallationId { get; set; }
     }
 }
