@@ -97,7 +97,7 @@ namespace PublishScheduler
             var client = await GetInstallationClientAsync(data.InstallationId);
             log.LogInformation($"ACKing to PR comment {data.RepositoryOwner}/{data.RepositoryName}#{data.PullRequestNumber}");
             
-            var message = $"Ok @{data.MergeIssuer} , I'll merge this Pull Request at `{data.MergeTime}` UTC. (Currently it's `{DateTime.UtcNow}` UTC.)";
+            var message = $"Ok @{data.MergeIssuer} , I'll merge this Pull Request at `{data.MergeTime}` UTC + about 5 minutes. (Currently it's `{DateTime.UtcNow}` UTC.)";
             await client.Issue.Comment.Create(data.RepositoryOwner, data.RepositoryName, data.PullRequestNumber, message);
         }
 
