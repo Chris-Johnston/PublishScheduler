@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IdentityModel.Tokens.Jwt;
 using System.IO;
 using System.Security.Cryptography;
@@ -96,8 +97,39 @@ namespace PublishScheduler
             var client = await GetInstallationClientAsync(data.InstallationId);
             log.LogInformation($"ACKing to PR comment {data.RepositoryOwner}/{data.RepositoryName}#{data.PullRequestNumber}");
             
-            var message = $"Ok @{data.MergeIssuer} , I'll merge this Pull Request at `{data.MergeTime}` UTC. (Currently it's {DateTime.UtcNow} UTC.)";
+            var message = $"Ok @{data.MergeIssuer} , I'll merge this Pull Request at `{data.MergeTime}` UTC + about 5 minutes. (Currently it's `{DateTime.UtcNow}` UTC.)";
             await client.Issue.Comment.Create(data.RepositoryOwner, data.RepositoryName, data.PullRequestNumber, message);
+        }
+
+        // creates a new pr to the target branch after the old pr is merged
+        public async Task CreateNewPR(MergeData data)
+        {
+            var client = await GetInstallationClientAsync(data.InstallationId);
+
+            // check that the pr went through first
+            var mergedPR = await client.PullRequest.Get(data.RepositoryOwner, data.RepositoryName, data.PullRequestNumber);
+            if (!mergedPR.Merged)
+            {
+                log.LogError("The pull request was not merged yet.");
+                return;
+            }
+
+            var sourceBranch = mergedPR.Base.Ref; // this could? be a commit hash too
+            var pr = new NewPullRequest($"AutoMerge: {sourceBranch} to {data.BranchName} by @{data.MergeIssuer}", sourceBranch, data.BranchName);
+            log.LogInformation($"Creating new PR: {sourceBranch} to {data.BranchName}");
+            var result = await client.PullRequest.Create(data.RepositoryOwner, data.RepositoryName, pr);
+
+            // assign ownership
+            log.LogInformation($"Created PR {result.Number}. Assigning ownership to {data.MergeIssuer}");
+            var reviewReq = new PullRequestReviewRequest(new List<string>{ data.MergeIssuer });
+            await client.PullRequest.ReviewRequest.Create(data.RepositoryOwner, data.RepositoryName, result.Number, reviewReq);
+
+            // TODO handle invalid BranchName
+
+            log.LogInformation("Leaving a comment on closed PR.");
+            // leave a comment on the merged PR
+            var comment = $"Ok @{data.MergeIssuer}, I've created Pull Request #{result.Number} for you that merges `{sourceBranch}` into `{data.BranchName}`.";
+            await client.Issue.Comment.Create(data.RepositoryOwner, data.RepositoryName, data.PullRequestNumber, comment);
         }
 
         public async Task MergePRAsync(MergeData data)
@@ -111,7 +143,7 @@ namespace PublishScheduler
 
             if (x.Mergeable == false)
             {
-                await client.Issue.Comment.Create(data.RepositoryOwner, data.RepositoryName, data.PullRequestNumber, "Auto-merge blocked by unmergeable state.");
+                await client.Issue.Comment.Create(data.RepositoryOwner, data.RepositoryName, data.PullRequestNumber, $"Auto-merge blocked by unmergeable state. @{data.MergeIssuer}, please resolve this and merge manually.");
             }
             else
             {
