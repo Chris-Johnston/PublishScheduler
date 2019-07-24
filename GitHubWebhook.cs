@@ -82,7 +82,7 @@ namespace PublishScheduler
         private const string IssueCommentEvent = "issue_comment";
 
         private const int ngrokAppId = 36401;
-        private const int prodAppId = 36392;
+        private const int prodAppId = 36392; // HACK: really should set this in env vars but I think it's fine
 
         public static int AppId
             => GetDebug() ? ngrokAppId : prodAppId;
