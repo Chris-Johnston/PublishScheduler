@@ -10,11 +10,30 @@ using Microsoft.Azure.Storage.Queue;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
+using Octokit;
+using System.Security.Cryptography;
+using System.IdentityModel.Tokens.Jwt;
+using Microsoft.IdentityModel.Tokens;
+using System.Xml.Serialization;
 
 namespace PublishScheduler
 {
     public static class GitHubWebhook
     {
+        // gets the rest of merge data from one that was created from a tag or PR comment/body
+        private static MergeData GetMergeData(this MergeData fromBody, WebhookPayload payload)
+        {
+            if (fromBody == null) return null; // silently fail
+
+            fromBody.RepositoryOwner = payload.Repository.Owner.Login;
+            fromBody.RepositoryName = payload.Repository.Name;
+            fromBody.PullRequestNumber = payload.PullRequest?.Number ?? payload.Issue?.Number ?? -1;
+            fromBody.PullRequestAuthor = payload.PullRequest?.User?.Login;
+            fromBody.MergeIssuer = payload.Sender?.Login;
+            fromBody.InstallationId = payload.Installation?.Id ?? 0;
+            return fromBody;
+        }
+
         private static MergeData CheckCommentHasCommand(WebhookPayload payload)
         {
             var body = payload?.Comment?.Body;
@@ -23,7 +42,7 @@ namespace PublishScheduler
 
             var parser = MergeInfoParser.GetCommentParser();
             var result = parser.Parse(body);
-            return result;
+            return result.GetMergeData(payload);
         }
 
         private static MergeData CheckPRHasCommand(WebhookPayload payload)
@@ -34,7 +53,7 @@ namespace PublishScheduler
 
             var parser = MergeInfoParser.GetCommentParser();
             var result = parser.Parse(body);
-            return result;
+            return result.GetMergeData(payload);
         }
 
         private static string InsertMessageToQueue (CloudQueue cQueueToInsert, MergeData mdMessageData, TimeSpan tsTimeToExecute)
@@ -62,6 +81,14 @@ namespace PublishScheduler
         private const string PullRequestEvent = "pull_request";
         private const string IssueCommentEvent = "issue_comment";
 
+        private const int ngrokAppId = 36401;
+        private const int prodAppId = 36392;
+
+        private const bool InDebug = true;
+
+        public static int AppId
+            => InDebug ? ngrokAppId : prodAppId;
+
         [FunctionName("GitHubWebhook")]
         public static async Task<IActionResult> Run(
             [HttpTrigger(AuthorizationLevel.Function, "get", "post", Route = null)] HttpRequest req,
@@ -86,9 +113,16 @@ namespace PublishScheduler
             CloudQueueClient cQueueClient = csAccount.CreateCloudQueueClient();
             CloudQueue cQueue = cQueueClient.GetQueueReference("scheduledprsqueue");
 
+            // this env var should have an xml body containing an RSA key
+            var xmlGHPrivateKey = Environment.GetEnvironmentVariable("GitHubPrivateKey");
+            var handler = new GitHubEventHandlers(log, xmlGHPrivateKey, AppId);
+
             // deserialize the payload
             var payload = JsonConvert.DeserializeObject<WebhookPayload>(requestBody);
-            if (payload != null)
+
+            bool isHuman = payload?.Sender?.Type == "User"; // don't respond in an infinite loop
+
+            if (payload != null && isHuman)
             {
                 log.LogDebug("Deserialized the payload.");
                 
@@ -107,9 +141,15 @@ namespace PublishScheduler
                         var result = CheckCommentHasCommand(payload);
                         if (result != null)
                         {
+                            // ack to the comment
+                            await handler.AckAddToQueueAsync(result);
+
                             log.LogInformation($"Got comment with command: {result.BranchName} {result.MergeTime}");
                             log.LogInformation($"Message insert result: " + InsertMessageToQueue(cQueue, result, TimeSpan.FromMinutes(5)));
                         }
+
+                        // debug, this should be done in QueueExecutor
+                        // MergePRAsync(log, xmlGHPrivateKey, result).GetAwaiter().GetResult();
                     break;
                 }
 

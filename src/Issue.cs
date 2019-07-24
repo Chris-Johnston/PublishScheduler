@@ -39,5 +39,8 @@ namespace PublishScheduler
 
         [JsonProperty("author_association")]
         public string AuthorAssociation { get; set; }
+
+        [JsonProperty("user")]
+        public User User { get; set; }
     }
 }

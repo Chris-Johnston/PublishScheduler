@@ -1,15 +1,17 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>netcoreapp2.1</TargetFramework>
     <AzureFunctionsVersion>v2</AzureFunctionsVersion>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="Newtonsoft.Json" Version="12.0.2" />
-    <PackageReference Include="Microsoft.Azure.ConfigurationManager" Version="4.0.0" />
-    <PackageReference Include="Microsoft.Azure.Storage.Common" Version="10.0.3" />
-    <PackageReference Include="Microsoft.Azure.Storage.Queue" Version="10.0.3" />
-    <PackageReference Include="Microsoft.Azure.WebJobs.Extensions.Storage" Version="3.0.4" />
-    <PackageReference Include="Microsoft.NET.Sdk.Functions" Version="1.0.29" />
+    <PackageReference Include="Newtonsoft.Json" Version="12.0.2"/>
+    <PackageReference Include="Microsoft.Azure.ConfigurationManager" Version="4.0.0"/>
+    <PackageReference Include="Microsoft.Azure.Storage.Common" Version="10.0.3"/>
+    <PackageReference Include="Microsoft.Azure.Storage.Queue" Version="10.0.3"/>
+    <PackageReference Include="Microsoft.Azure.WebJobs.Extensions.Storage" Version="3.0.4"/>
+    <PackageReference Include="Microsoft.NET.Sdk.Functions" Version="1.0.29"/>
+    <PackageReference Include="Octokit" Version="0.32.0"/>
+    <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="5.5.0"/>
   </ItemGroup>
   <ItemGroup>
     <None Update="host.json">
@@ -21,6 +23,6 @@
     </None>
   </ItemGroup>
   <ItemGroup>
-    <Folder Include="src\" />
+    <Folder Include="src\"/>
   </ItemGroup>
 </Project>

@@ -22,5 +22,8 @@ namespace PublishScheduler
 
         [JsonProperty("repository")]
         public Repository Repository { get; set; }
+
+        [JsonProperty("installation")]
+        public Installation Installation { get; set; }
     }
 }
