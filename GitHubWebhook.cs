@@ -150,6 +150,7 @@ namespace PublishScheduler
                             {
                                 // ack to the comment
                                 await handler.AckAddToQueueAsync(result);
+                                await handler.BlockMergeAsync(result);
 
                                 log.LogInformation($"Got comment with command: {result.BranchName} {result.MergeTime}");
                                 log.LogInformation($"Message insert result: " + InsertMessageToQueue(cQueue, result, TimeSpan.FromMinutes(5)));

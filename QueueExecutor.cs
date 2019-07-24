@@ -26,6 +26,7 @@ namespace PublishScheduler
 
             try
             {
+                await handler.PassMergeAsync(mdQueueObject);
                 await handler.MergePRAsync(mdQueueObject);
                 if (!string.IsNullOrWhiteSpace(mdQueueObject.BranchName))
                 {

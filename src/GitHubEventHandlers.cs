@@ -132,6 +132,34 @@ namespace PublishScheduler
             await client.Issue.Comment.Create(data.RepositoryOwner, data.RepositoryName, data.PullRequestNumber, comment);
         }
 
+        public async Task BlockMergeAsync(MergeData data)
+        {
+            var client = await GetInstallationClientAsync(data.InstallationId);
+
+            var pr = await client.PullRequest.Get(data.RepositoryOwner, data.RepositoryName, data.PullRequestNumber);
+            var prHead = pr.Head;
+
+            var checkRun = new NewCheckRun($"PublishingScheduler Auto-Merge", prHead.Ref);
+            checkRun.Status = CheckStatus.Completed;
+            checkRun.Conclusion = CheckConclusion.Failure;
+            checkRun.Output = new NewCheckRunOutput($"Auto-Merge at {data.MergeTime} UTC", $"An auto-merge is scheduled for {data.MergeTime} UTC.");
+            await client.Check.Run.Create(data.RepositoryOwner, data.RepositoryName, checkRun);
+        }
+
+        public async Task PassMergeAsync(MergeData data)
+        {
+            var client = await GetInstallationClientAsync(data.InstallationId);
+
+            var pr = await client.PullRequest.Get(data.RepositoryOwner, data.RepositoryName, data.PullRequestNumber);
+            var prHead = pr.Head;
+
+            var checkRun = new NewCheckRun($"PublishingScheduler Auto-Merge", prHead.Ref);
+            checkRun.Status = CheckStatus.Completed;
+            checkRun.Conclusion = CheckConclusion.Success;
+            checkRun.Output = new NewCheckRunOutput($"{data.MergeTime} UTC", $"An auto-merge is scheduled for {data.MergeTime} UTC.");
+            await client.Check.Run.Create(data.RepositoryOwner, data.RepositoryName, checkRun);
+        }
+
         public async Task MergePRAsync(MergeData data)
         {
             var client = await GetInstallationClientAsync(data.InstallationId);
