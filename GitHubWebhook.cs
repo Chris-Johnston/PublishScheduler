@@ -114,7 +114,8 @@ namespace PublishScheduler
             log.LogInformation($"Request body: {requestBody}");
 
             // Establishing connectivity to queue
-            CloudStorageAccount csAccount = CloudStorageAccount.Parse("DefaultEndpointsProtocol=https;AccountName=pubscheda792;AccountKey=x5C8PUwhSi94mgV2HALD6oGHA0sAGMq408OAz1xSXjHudGdi5nDsG3NQTIVmV/1d2hYN1uRwJhhrGSiuYUqQkA==;");
+            var azureStorageConnectionString = Environment.GetEnvironmentVariable("AzureWebJobsStorage");
+            CloudStorageAccount csAccount = CloudStorageAccount.Parse(azureStorageConnectionString);
             CloudQueueClient cQueueClient = csAccount.CreateCloudQueueClient();
             CloudQueue cQueue = cQueueClient.GetQueueReference("scheduledprsqueue");
 
