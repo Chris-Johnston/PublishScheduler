@@ -1,6 +1,11 @@
 # Publish Scheduler
 
 A GitHub App that schedules your Pull Request merges. Built for the 2019 Microsoft Hackathon.
+Built by [Chris Johnston], [Dani Halfin], and [KC Cross].
+
+[Chris Johnston]: https://github.com/Chris-Johnston
+[Dani Halfin]: https://github.com/DaniHalfin
+[KC Cross]: https://github.com/KCCross
 
 **This is a hackathon project, and is not suitable for production use.**
 
